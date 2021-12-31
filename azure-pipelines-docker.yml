@@ -33,7 +33,7 @@ stages:
     - task: AzureRmWebAppDeployment@4
       inputs:
         ConnectionType: 'AzureRM'
-        azureSubscription: 'Azure - SS2'
+        azureSubscription: 'Azure Pass - Sponsorship'
         appType: 'webAppContainer'
         WebAppName: 'socdemodockerservice'
         DockerNamespace: '$(dockerImageRepository).azurecr.io'

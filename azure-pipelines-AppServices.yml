@@ -47,7 +47,7 @@ stages:
           - task: AzureRmWebAppDeployment@4
             inputs:
               ConnectionType: 'AzureRM'
-              azureSubscription: 'Azure - SS2'
+              azureSubscription: 'Azure Pass - Sponsorship'
               appType: 'webApp'
               WebAppName: 'dsdemoapp-dev'
               packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
@@ -66,7 +66,7 @@ stages:
         - task: AzureRmWebAppDeployment@4
           inputs:
             ConnectionType: 'AzureRM'
-            azureSubscription: 'Azure - SS2'
+            azureSubscription: 'Azure Pass - Sponsorship'
             appType: 'webApp'
             WebAppName: 'dsdemoapp-qa'
             packageForLinux: '$(Pipeline.Workspace)/**/*.zip'        
@@ -85,17 +85,17 @@ stages:
         - task: AzureRmWebAppDeployment@4
           inputs:
             ConnectionType: 'AzureRM'
-            azureSubscription: 'Azure - SS2'
+            azureSubscription: 'Azure Pass - Sponsorship'
             appType: 'webApp'
             WebAppName: 'dsdemoapp-prod'
             deployToSlotOrASE: true
-            ResourceGroupName: 'Demo-rg'
+            ResourceGroupName: 'azarch-course1'
             SlotName: 'staging'
             packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
         - task: AzureAppServiceManage@0
           inputs:
-            azureSubscription: 'VS Subscription - SS1 - Automatic'
+            azureSubscription: 'Azure Pass - Sponsorship'
             Action: 'Swap Slots'
             WebAppName: 'dsdemoapp-prod'
-            ResourceGroupName: 'Demo-rg'
+            ResourceGroupName: 'azarch-course1'
             SourceSlot: 'staging'
