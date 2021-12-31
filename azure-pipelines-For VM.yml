@@ -1,0 +1,69 @@
+trigger:
+- none
+  # branches:
+  #   include:
+  #   - master
+  # paths:
+  #   exclude:
+  #   - azure-pipelines.yaml
+
+stages:
+- stage: Build
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: windows-latest 
+
+    variables:
+      buildConfiguration: 'Release'   
+
+    steps:   
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '6.0.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish the project'
+      inputs:
+        command: 'publish'
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifacts'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: DeployToDevStage
+  jobs:
+  - deployment: DeployToDevJob
+    environment: 
+     name: VMs-Dev
+     tags: webserver
+     resourceType: VirtualMachine
+    strategy:
+     runOnce:
+      deploy:
+        steps:
+          
+          - task: IISWebAppManagementOnMachineGroup@0
+            inputs:
+              EnableIIS: true
+              IISDeploymentType: 'IISWebsite'
+              ActionIISWebsite: 'CreateOrUpdateWebsite'
+              WebsiteName: 'Default web site'
+              WebsitePhysicalPath: '%SystemDrive%\inetpub\wwwroot'
+              WebsitePhysicalPathAuth: 'WebsiteUserPassThrough'
+              AddBinding: true
+              Protocol: http
+              IPAddress: 'All Unassigned'
+              port: 80
+
+          - task: IISWebAppDeploymentOnMachineGroup@0
+            inputs:
+              WebSiteName: 'Default web site'
+              Package: '$(Pipeline.Workspace)/**/*.zip'
+              TakeAppOfflineFlag: true

@@ -1,0 +1,101 @@
+trigger:
+- none
+
+stages:
+- stage: 'BuildStage'
+  jobs:
+  - job: 'BuildJob'
+    pool:
+      vmImage: windows-latest
+    variables:
+      buildConfiguration: 'Release'
+    steps:
+    - task: DotNetCoreCLI@2
+      displayName: "Restore"
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+        feedsToUse: 'select'
+    - task: DotNetCoreCLI@2
+      displayName: "Build"
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+    - task: DotNetCoreCLI@2
+      displayName: "Publish"
+      inputs:
+        command: 'publish'
+        publishWebProjects: true
+        arguments: '--output $(Build.ArtifactStagingDirectory) --configuration $(buildConfiguration)'
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'drop'
+        publishLocation: 'pipeline'
+
+- stage: 'DeploytoDev'
+  dependsOn: 'BuildStage'
+  jobs:
+  - deployment:     
+    pool: 
+      vmImage: 'ubuntu-latest'
+    environment: Development
+    strategy:
+      runOnce:
+        deploy:          
+          steps:
+          - task: AzureRmWebAppDeployment@4
+            inputs:
+              ConnectionType: 'AzureRM'
+              azureSubscription: 'Azure - SS2'
+              appType: 'webApp'
+              WebAppName: 'dsdemoapp-dev'
+              packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
+
+- stage: 'DeploytoQA'
+  dependsOn: 'DeploytoDev'
+  jobs:
+  - deployment:
+    environment: QA
+    pool: 
+      vmImage: 'ubuntu-latest'
+    strategy:
+     runOnce:
+       deploy:         
+        steps:
+        - task: AzureRmWebAppDeployment@4
+          inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: 'Azure - SS2'
+            appType: 'webApp'
+            WebAppName: 'dsdemoapp-qa'
+            packageForLinux: '$(Pipeline.Workspace)/**/*.zip'        
+
+- stage: 'DeploytoProd'
+  dependsOn: 'DeploytoQA'
+  jobs:
+  - deployment: 
+    environment: Production
+    pool: 
+      vmImage: 'ubuntu-latest'
+    strategy:
+     runOnce: 
+       deploy:  
+        steps:
+        - task: AzureRmWebAppDeployment@4
+          inputs:
+            ConnectionType: 'AzureRM'
+            azureSubscription: 'Azure - SS2'
+            appType: 'webApp'
+            WebAppName: 'dsdemoapp-prod'
+            deployToSlotOrASE: true
+            ResourceGroupName: 'Demo-rg'
+            SlotName: 'staging'
+            packageForLinux: '$(Pipeline.Workspace)/**/*.zip'
+        - task: AzureAppServiceManage@0
+          inputs:
+            azureSubscription: 'VS Subscription - SS1 - Automatic'
+            Action: 'Swap Slots'
+            WebAppName: 'dsdemoapp-prod'
+            ResourceGroupName: 'Demo-rg'
+            SourceSlot: 'staging'

@@ -1,0 +1,72 @@
+trigger:
+- none
+
+resources:
+- repo: self
+
+variables:
+  containerRegistryName: 'dssdemoregnov'
+  kubernetesClusterName: "dssaksclusternov"
+
+stages:
+- stage: Build
+  displayName: Build image
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: replacetokens@4
+      displayName: Replace Tokens in Parameters file
+      inputs:
+        targetFiles: '$(Build.SourcesDirectory)/**/CreateAKSCluster-parameters.json'
+        encoding: 'auto'
+        tokenPattern: 'default'
+        writeBOM: true
+        actionOnMissing: 'warn'
+        keepToken: false
+        actionOnNoFiles: 'continue'
+        enableTransforms: false
+        useLegacyPattern: false
+        enableTelemetry: true
+
+    - task: CopyFiles@2
+      displayName: Copy Template and Parameters File to Artifact Staging Directory
+      inputs:
+        SourceFolder: 'Templates'
+        Contents: '*.json'
+        TargetFolder: '$(Build.ArtifactstagingDirectory)'
+
+    - task: PublishPipelineArtifact@1
+      displayName: Publish Artifacts
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'drop'
+        publishLocation: 'pipeline'
+
+- stage: 'DeploytoDev'
+  displayName: Deploy To Developement
+  jobs:
+  - deployment:     
+    pool: 
+      vmImage: 'ubuntu-latest'
+    environment: Development
+    strategy:
+      runOnce:
+        deploy:          
+          steps:
+          - task: AzureResourceManagerTemplateDeployment@3
+            inputs:
+              deploymentScope: 'Resource Group'
+              azureResourceManagerConnection: 'Azure Pass - Sponsorship'
+              subscriptionId: 'd982c16c-0297-4c50-8e1f-16702d37a08c'
+              action: 'Create Or Update Resource Group'
+              resourceGroupName: 'azarch-course1'
+              location: 'East US'
+              templateLocation: 'Linked artifact'
+              csmFile: '$(Pipeline.Workspace)/**/CreateAKSCluster.json'
+              csmParametersFile: '$(Pipeline.Workspace)/**/CreateAKSCluster-parameters.json'
+              deploymentMode: 'Incremental'
+              deploymentName: 'AKSCluster'
+        
